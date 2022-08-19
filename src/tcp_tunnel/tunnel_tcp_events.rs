@@ -44,10 +44,12 @@ impl TunnelTcpEvents {
                                 .await;
                         }
                         Err(err) => {
-                            println!("New connection {} reject ", id);
+                            println!("Sending new connection {} reject ", id);
                             app.tunnel_tcp_connection
                                 .send_can_not_establish_target_connection_to_tunnel(id, err)
                                 .await;
+
+                            println!("Sent new connection {} reject ", id);
                         }
                     };
                 });
