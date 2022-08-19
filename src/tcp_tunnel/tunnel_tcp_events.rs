@@ -26,30 +26,29 @@ impl TunnelTcpEvents {
             TunnelTcpContract::Pong => {
                 // N/A
             }
-            TunnelTcpContract::ConnectTo { id, url } => {
+            TunnelTcpContract::ConnectTo {
+                id,
+                remote_host_port,
+            } => {
                 // A asks to connect to B
                 let app = self.app.clone();
                 tokio::spawn(async move {
                     match TargetTcpClient::new(
                         Arc::new(TargetTcpCallbacks::new(app.clone())),
                         id,
-                        url,
+                        remote_host_port,
                     )
                     .await
                     {
                         Ok(connection) => {
-                            println!("New {} connection", id);
                             app.tunnel_tcp_connection
                                 .new_target_connection_established(&connection)
                                 .await;
                         }
                         Err(err) => {
-                            println!("Sending new connection {} reject ", id);
                             app.tunnel_tcp_connection
                                 .send_can_not_establish_target_connection_to_tunnel(id, err)
                                 .await;
-
-                            println!("Sent new connection {} reject ", id);
                         }
                     };
                 });
@@ -63,8 +62,6 @@ impl TunnelTcpEvents {
             TunnelTcpContract::DisconnectedFromSideA(id) => {
                 // Socket is disconnected on b side
 
-                println!("Connection {} is disconnected from side A", id);
-
                 self.app
                     .tunnel_tcp_connection
                     .disconnect_target_tcp_connection(
@@ -76,8 +73,6 @@ impl TunnelTcpEvents {
             TunnelTcpContract::DisconnectedFromSideB(id) => {
                 // Socket is disconnected on b side
 
-                println!("Connection {} is disconnected from side B", id);
-
                 self.app
                     .tunnel_tcp_connection
                     .disconnect_target_tcp_connection(
@@ -88,12 +83,6 @@ impl TunnelTcpEvents {
             }
             TunnelTcpContract::Payload { id, payload } => {
                 // We have payload from a to b;
-
-                println!(
-                    "Payload from client {} to target server with len {}",
-                    id,
-                    payload.len()
-                );
 
                 self.app
                     .tunnel_tcp_connection

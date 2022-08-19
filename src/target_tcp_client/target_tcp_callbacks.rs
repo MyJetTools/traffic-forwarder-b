@@ -23,12 +23,6 @@ impl TargetTcpCallbacks {
     }
 
     pub async fn on_payload(&self, tcp_client: &Arc<TargetTcpClient>, payload: Vec<u8>) -> bool {
-        println!(
-            "Sending payload from server to client {} with len:{}",
-            tcp_client.id,
-            payload.len()
-        );
-
         self.app
             .tunnel_tcp_connection
             .send_payload_to_tunnel(tcp_client.id, payload)

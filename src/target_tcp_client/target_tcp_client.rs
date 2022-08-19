@@ -18,14 +18,12 @@ impl TargetTcpClient {
     pub async fn new(
         callbacks: Arc<TargetTcpCallbacks>,
         id: u32,
-        host_port: String,
+        remote_host_port: String,
     ) -> Result<Arc<Self>, String> {
-        println!("Connecting to {} for target connection {}", host_port, id);
-        let connect_result = TcpStream::connect(host_port.as_str()).await;
+        let connect_result = TcpStream::connect(remote_host_port.as_str()).await;
 
         match connect_result {
             Ok(tcp_stream) => {
-                println!("Connected to {} for target connection {}", host_port, id);
                 let (read_stream, write_stream) = tokio::io::split(tcp_stream);
                 let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
 
@@ -50,11 +48,11 @@ impl TargetTcpClient {
             Err(err) => {
                 println!(
                     "Can not connect to {} for target connection {}",
-                    host_port, id
+                    remote_host_port, id
                 );
                 Err(format!(
                     "Can not connect to target {}. Err: {}",
-                    host_port, err
+                    remote_host_port, err
                 ))
             }
         }
@@ -65,11 +63,11 @@ impl TargetTcpClient {
     }
 
     pub fn disconnect(&self) {
-        let before_was_connected = self
+        let before_was_disconnected = self
             .disconnected
             .swap(true, std::sync::atomic::Ordering::SeqCst);
 
-        if before_was_connected {
+        if !before_was_disconnected {
             let _ = self.sender.send(None);
         }
     }
@@ -82,19 +80,14 @@ async fn read_loop(
     tcp_connection: Arc<TargetTcpClient>,
 ) {
     let mut buffer: Vec<u8> = Vec::with_capacity(buffer_size);
+    unsafe {
+        buffer.set_len(buffer_size);
+    }
 
     loop {
-        unsafe {
-            buffer.set_len(buffer_size);
-        }
-
         match read_stream.read(&mut buffer).await {
             Ok(read_amount) => {
                 if read_amount == 0 {
-                    println!(
-                        "Socket {} got 0 bytes. Stopping read_stream",
-                        tcp_connection.id,
-                    );
                     break;
                 }
 

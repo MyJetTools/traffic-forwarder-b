@@ -41,10 +41,6 @@ impl TunnelTcpConnection {
         };
 
         if let Some(connection) = connection.as_ref() {
-            println!(
-                "Sending connection {} is establised to tunnel",
-                target_tcp_client.id
-            );
             connection
                 .send(TunnelTcpContract::Connected(target_tcp_client.id))
                 .await;

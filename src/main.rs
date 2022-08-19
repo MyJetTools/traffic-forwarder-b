@@ -11,7 +11,7 @@ mod tcp_tunnel;
 
 #[tokio::main]
 async fn main() {
-    let settings = crate::settings_model::SettingsModel::load(".traffic-forwarder").await;
+    let settings = crate::settings_model::SettingsModel::load(".traffic-forwarder-b").await;
 
     let app = app::AppContext::new(settings);
     let app = Arc::new(app);
