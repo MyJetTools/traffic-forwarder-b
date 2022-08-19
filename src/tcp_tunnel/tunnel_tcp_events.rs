@@ -38,11 +38,13 @@ impl TunnelTcpEvents {
                     .await
                     {
                         Ok(connection) => {
+                            println!("New {} connection", id);
                             app.tunnel_tcp_connection
                                 .new_target_connection_established(&connection)
                                 .await;
                         }
                         Err(err) => {
+                            println!("New connection {} reject ", id);
                             app.tunnel_tcp_connection
                                 .send_can_not_establish_target_connection_to_tunnel(id, err)
                                 .await;
