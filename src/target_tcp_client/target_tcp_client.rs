@@ -22,10 +22,10 @@ impl TargetTcpClient {
     ) -> Result<Arc<Self>, String> {
         println!("Connecting to {} for target connection {}", host_port, id);
         let connect_result = TcpStream::connect(host_port.as_str()).await;
-        println!("Connected to {} for target connection {}", host_port, id);
 
         match connect_result {
             Ok(tcp_stream) => {
+                println!("Connected to {} for target connection {}", host_port, id);
                 let (read_stream, write_stream) = tokio::io::split(tcp_stream);
                 let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
 
@@ -47,10 +47,16 @@ impl TargetTcpClient {
 
                 return Ok(result);
             }
-            Err(err) => Err(format!(
-                "Can not connect to target {}. Err: {}",
-                host_port, err
-            )),
+            Err(err) => {
+                println!(
+                    "Can not connect to {} for target connection {}",
+                    host_port, id
+                );
+                Err(format!(
+                    "Can not connect to target {}. Err: {}",
+                    host_port, err
+                ))
+            }
         }
     }
 
