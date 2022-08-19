@@ -60,14 +60,30 @@ impl TunnelTcpEvents {
             TunnelTcpContract::CanNotConnect { id: _, reason: _ } => {
                 // N/A
             }
-            TunnelTcpContract::Disconnected(id) => {
+            TunnelTcpContract::DisconnectedFromSideA(id) => {
                 // Socket is disconnected on b side
 
-                println!("Connection {} is disconnected", id);
+                println!("Connection {} is disconnected from side A", id);
 
                 self.app
                     .tunnel_tcp_connection
-                    .disconnect_target_tcp_connection(id)
+                    .disconnect_target_tcp_connection(
+                        id,
+                        crate::tcp_tunnel::DisconnectReason::DisconnectedFromSideA,
+                    )
+                    .await;
+            }
+            TunnelTcpContract::DisconnectedFromSideB(id) => {
+                // Socket is disconnected on b side
+
+                println!("Connection {} is disconnected from side B", id);
+
+                self.app
+                    .tunnel_tcp_connection
+                    .disconnect_target_tcp_connection(
+                        id,
+                        crate::tcp_tunnel::DisconnectReason::DisconnectedFromSideB,
+                    )
                     .await;
             }
             TunnelTcpContract::Payload { id, payload } => {

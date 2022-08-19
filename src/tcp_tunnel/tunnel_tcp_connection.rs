@@ -8,6 +8,11 @@ use crate::target_tcp_client::TargetTcpClient;
 
 use super::TcpTunnel;
 
+pub enum DisconnectReason {
+    DisconnectedFromSideA,
+    DisconnectedFromSideB,
+}
+
 pub struct TunnelTcpConnection {
     tcp_tunnel: Mutex<Option<TcpTunnel>>,
 }
@@ -27,7 +32,7 @@ impl TunnelTcpConnection {
             let mut write_access = self.tcp_tunnel.lock().await;
 
             if let Some(tunnel) = write_access.as_mut() {
-                tunnel.add_target_connection(target_tcp_client.clone());
+                tunnel.target_connections.add(target_tcp_client.clone());
 
                 Some(tunnel.get_tunnel_connection())
             } else {
@@ -71,17 +76,55 @@ impl TunnelTcpConnection {
         }
     }
 
-    pub async fn disconnect_target_tcp_connection(&self, connection_id: u32) {
-        let mut tunnel_access = self.tcp_tunnel.lock().await;
-        if let Some(tunnel) = tunnel_access.as_mut() {
-            tunnel.disconnect_target_connection(connection_id).await;
+    pub async fn disconnect_target_tcp_connection(
+        &self,
+        connection_id: u32,
+        reason: DisconnectReason,
+    ) {
+        let tunnel_connection = {
+            let mut tunnel_access = self.tcp_tunnel.lock().await;
+            if let Some(tunnel) = tunnel_access.as_mut() {
+                if let Some(target_connection) = tunnel.target_connections.remove(connection_id) {
+                    target_connection.disconnect();
+
+                    if let DisconnectReason::DisconnectedFromSideB = reason {
+                        Some(tunnel.get_tunnel_connection())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(tunnel_connection) = tunnel_connection {
+            tunnel_connection
+                .send(TunnelTcpContract::DisconnectedFromSideB(connection_id))
+                .await;
         }
     }
 
     pub async fn send_payload_to_target(&self, connection_id: u32, payload: Vec<u8>) {
-        let tunnel_access = self.tcp_tunnel.lock().await;
-        if let Some(tunnel) = tunnel_access.as_ref() {
-            tunnel.send_payload_to_target(connection_id, payload);
+        let target_connection = {
+            let tunnel_access = self.tcp_tunnel.lock().await;
+
+            if let Some(tunnel_access) = tunnel_access.as_ref() {
+                if let Some(target_connection) = tunnel_access.target_connections.get(connection_id)
+                {
+                    Some(target_connection.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(target_connection) = target_connection {
+            target_connection.send_payload(payload);
         }
     }
 
