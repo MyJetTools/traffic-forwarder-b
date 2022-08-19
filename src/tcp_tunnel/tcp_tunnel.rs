@@ -3,11 +3,11 @@ use std::sync::Arc;
 use my_tcp_sockets::tcp_connection::SocketConnection;
 use traffic_forwarder_shared::tcp_tunnel::{TunnelTcpContract, TunnelTcpSerializer};
 
-use crate::tcp_client::{TcpClientToTarget, TcpClientToTargetConnections};
+use crate::target_tcp_client::{TargetTcpClient, TargetTcpConnections};
 
 pub struct TcpTunnel {
     tunnel_connection: Arc<SocketConnection<TunnelTcpContract, TunnelTcpSerializer>>,
-    target_connections: TcpClientToTargetConnections,
+    target_connections: TargetTcpConnections,
 }
 
 impl TcpTunnel {
@@ -16,7 +16,7 @@ impl TcpTunnel {
     ) -> Self {
         Self {
             tunnel_connection,
-            target_connections: TcpClientToTargetConnections::new(),
+            target_connections: TargetTcpConnections::new(),
         }
     }
 
@@ -59,7 +59,7 @@ impl TcpTunnel {
             .await
     }
 
-    pub fn add_target_connection(&mut self, tcp_client_to_target: Arc<TcpClientToTarget>) {
+    pub fn add_target_connection(&mut self, tcp_client_to_target: Arc<TargetTcpClient>) {
         self.target_connections.add(tcp_client_to_target);
     }
 

@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use my_tcp_sockets::{ConnectionEvent, SocketEventCallback};
 
-use crate::{app::AppContext, tcp_client::TcpClientToTarget};
+use crate::{
+    app::AppContext,
+    target_tcp_client::{TargetTcpCallbacks, TargetTcpClient},
+};
 
 use traffic_forwarder_shared::tcp_tunnel::{TunnelTcpContract, TunnelTcpSerializer};
 
@@ -25,7 +28,6 @@ impl TunnelTcpEvents {
             }
             TunnelTcpContract::ConnectTo { id, url } => {
                 // A asks to connect to B
-                println!("Reqeust to socket {} make a connection to {}", id, url);
                 establish_connection(self.app.clone(), id, url);
             }
             TunnelTcpContract::Connected(_) => {
@@ -46,6 +48,12 @@ impl TunnelTcpEvents {
             }
             TunnelTcpContract::Payload { id, payload } => {
                 // We have payload from a to b;
+
+                println!(
+                    "Payload from client {} to target server with len {}",
+                    id,
+                    payload.len()
+                );
 
                 self.app
                     .tunnel_tcp_connection
@@ -95,10 +103,16 @@ impl SocketEventCallback<TunnelTcpContract, TunnelTcpSerializer> for TunnelTcpEv
 
 fn establish_connection(app: Arc<AppContext>, connection_id: u32, host_port: String) {
     tokio::spawn(async move {
-        match TcpClientToTarget::new(&app, connection_id, host_port).await {
+        match TargetTcpClient::new(
+            Arc::new(TargetTcpCallbacks::new(app.clone())),
+            connection_id,
+            host_port,
+        )
+        .await
+        {
             Ok(connection) => {
                 app.tunnel_tcp_connection
-                    .new_target_connection_established(connection)
+                    .new_target_connection_established(&connection)
                     .await;
             }
             Err(err) => {

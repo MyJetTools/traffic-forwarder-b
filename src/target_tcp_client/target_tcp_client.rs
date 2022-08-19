@@ -6,30 +6,26 @@ use tokio::{net::TcpStream, sync::mpsc::UnboundedReceiver};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 
-use crate::app::AppContext;
+use super::TargetTcpCallbacks;
 
-pub struct TcpClientToTarget {
+pub struct TargetTcpClient {
     pub id: u32,
     sender: UnboundedSender<Option<Vec<u8>>>,
     disconnected: AtomicBool,
 }
 
-impl TcpClientToTarget {
+impl TargetTcpClient {
     pub async fn new(
-        app: &Arc<AppContext>,
+        callbacks: Arc<TargetTcpCallbacks>,
         id: u32,
         host_port: String,
     ) -> Result<Arc<Self>, String> {
-        println!("Connecting to {}", host_port);
         let connect_result = TcpStream::connect(host_port.as_str()).await;
-        println!("Connected to {}", host_port);
 
         match connect_result {
             Ok(tcp_stream) => {
                 let (read_stream, write_stream) = tokio::io::split(tcp_stream);
                 let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-
-                let app_spawned = app.clone();
 
                 let result = Self {
                     id,
@@ -39,7 +35,7 @@ impl TcpClientToTarget {
                 let result = Arc::new(result);
 
                 tokio::spawn(read_loop(
-                    app_spawned,
+                    callbacks.clone(),
                     read_stream,
                     1024 * 1024 * 5,
                     result.clone(),
@@ -72,10 +68,10 @@ impl TcpClientToTarget {
 }
 
 async fn read_loop(
-    app: Arc<AppContext>,
+    callbacks: Arc<TargetTcpCallbacks>,
     mut read_stream: ReadHalf<TcpStream>,
     buffer_size: usize,
-    tcp_connection: Arc<TcpClientToTarget>,
+    tcp_connection: Arc<TargetTcpClient>,
 ) {
     let mut buffer: Vec<u8> = Vec::with_capacity(buffer_size);
 
@@ -94,9 +90,8 @@ async fn read_loop(
                     break;
                 }
 
-                if !app
-                    .tunnel_tcp_connection
-                    .send_payload_to_tunnel(tcp_connection.id, buffer[..read_amount].to_vec())
+                if !callbacks
+                    .on_payload(&tcp_connection, buffer[..read_amount].to_vec())
                     .await
                 {
                     println!(
@@ -116,9 +111,7 @@ async fn read_loop(
         }
     }
 
-    app.tunnel_tcp_connection
-        .disconnect_target_tcp_connection(tcp_connection.id)
-        .await;
+    callbacks.on_disconnected(tcp_connection).await;
 }
 
 async fn tcp_send_loop(

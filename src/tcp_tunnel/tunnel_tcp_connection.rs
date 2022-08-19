@@ -4,7 +4,7 @@ use my_tcp_sockets::tcp_connection::SocketConnection;
 use tokio::sync::Mutex;
 use traffic_forwarder_shared::tcp_tunnel::{TunnelTcpContract, TunnelTcpSerializer};
 
-use crate::tcp_client::TcpClientToTarget;
+use crate::target_tcp_client::TargetTcpClient;
 
 use super::TcpTunnel;
 
@@ -21,13 +21,13 @@ impl TunnelTcpConnection {
 
     pub async fn new_target_connection_established(
         &self,
-        tcp_client_to_target: Arc<TcpClientToTarget>,
+        tcp_client_to_target: &Arc<TargetTcpClient>,
     ) -> Option<i32> {
         let connection_id = tcp_client_to_target.id;
         let mut write_access = self.tcp_tunnel.lock().await;
 
         if let Some(tunnel) = write_access.as_mut() {
-            tunnel.add_target_connection(tcp_client_to_target);
+            tunnel.add_target_connection(tcp_client_to_target.clone());
             self.send_connection_is_established_to_tunnel(connection_id)
                 .await;
             Some(tunnel.get_tunnel_connection_id())

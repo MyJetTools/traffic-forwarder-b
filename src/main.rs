@@ -6,7 +6,7 @@ use traffic_forwarder_shared::tcp_tunnel::TunnelTcpSerializer;
 
 mod app;
 mod settings_model;
-mod tcp_client;
+mod target_tcp_client;
 mod tcp_tunnel;
 
 #[tokio::main]
