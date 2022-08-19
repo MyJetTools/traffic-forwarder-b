@@ -28,7 +28,27 @@ impl TunnelTcpEvents {
             }
             TunnelTcpContract::ConnectTo { id, url } => {
                 // A asks to connect to B
-                establish_connection(self.app.clone(), id, url);
+                let app = self.app.clone();
+                tokio::spawn(async move {
+                    match TargetTcpClient::new(
+                        Arc::new(TargetTcpCallbacks::new(app.clone())),
+                        id,
+                        url,
+                    )
+                    .await
+                    {
+                        Ok(connection) => {
+                            app.tunnel_tcp_connection
+                                .new_target_connection_established(&connection)
+                                .await;
+                        }
+                        Err(err) => {
+                            app.tunnel_tcp_connection
+                                .send_can_not_establish_target_connection_to_tunnel(id, err)
+                                .await;
+                        }
+                    };
+                });
             }
             TunnelTcpContract::Connected(_) => {
                 // N/A
@@ -99,27 +119,4 @@ impl SocketEventCallback<TunnelTcpContract, TunnelTcpSerializer> for TunnelTcpEv
             }
         }
     }
-}
-
-fn establish_connection(app: Arc<AppContext>, connection_id: u32, host_port: String) {
-    tokio::spawn(async move {
-        match TargetTcpClient::new(
-            Arc::new(TargetTcpCallbacks::new(app.clone())),
-            connection_id,
-            host_port,
-        )
-        .await
-        {
-            Ok(connection) => {
-                app.tunnel_tcp_connection
-                    .new_target_connection_established(&connection)
-                    .await;
-            }
-            Err(err) => {
-                app.tunnel_tcp_connection
-                    .send_can_not_establish_target_connection_to_tunnel(connection_id, err)
-                    .await;
-            }
-        };
-    });
 }

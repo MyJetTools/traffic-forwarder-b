@@ -21,19 +21,31 @@ impl TunnelTcpConnection {
 
     pub async fn new_target_connection_established(
         &self,
-        tcp_client_to_target: &Arc<TargetTcpClient>,
-    ) -> Option<i32> {
-        let connection_id = tcp_client_to_target.id;
-        let mut write_access = self.tcp_tunnel.lock().await;
+        target_tcp_client: &Arc<TargetTcpClient>,
+    ) -> Option<Arc<SocketConnection<TunnelTcpContract, TunnelTcpSerializer>>> {
+        let connection = {
+            let mut write_access = self.tcp_tunnel.lock().await;
 
-        if let Some(tunnel) = write_access.as_mut() {
-            tunnel.add_target_connection(tcp_client_to_target.clone());
-            self.send_connection_is_established_to_tunnel(connection_id)
+            if let Some(tunnel) = write_access.as_mut() {
+                tunnel.add_target_connection(target_tcp_client.clone());
+
+                Some(tunnel.get_tunnel_connection())
+            } else {
+                None
+            }
+        };
+
+        if let Some(connection) = connection.as_ref() {
+            println!(
+                "Sending connection {} is establised to tunnel",
+                target_tcp_client.id
+            );
+            connection
+                .send(TunnelTcpContract::Connected(target_tcp_client.id))
                 .await;
-            Some(tunnel.get_tunnel_connection_id())
-        } else {
-            None
         }
+
+        connection
     }
 
     async fn get_tunnel_connection(
@@ -55,16 +67,6 @@ impl TunnelTcpConnection {
                     id: connection_id,
                     reason: err,
                 })
-                .await;
-        }
-    }
-
-    pub async fn send_connection_is_established_to_tunnel(&self, connection_id: u32) {
-        let tunnel_access = self.tcp_tunnel.lock().await;
-
-        if let Some(tunnel) = tunnel_access.as_ref() {
-            tunnel
-                .send_connection_is_established_to_tunnel(connection_id)
                 .await;
         }
     }

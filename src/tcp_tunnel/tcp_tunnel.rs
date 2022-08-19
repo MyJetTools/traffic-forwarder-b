@@ -28,20 +28,10 @@ impl TcpTunnel {
         }
     }
 
-    pub fn get_tunnel_connection_id(&self) -> i32 {
-        self.tunnel_connection.id
-    }
-
     pub fn get_tunnel_connection(
         &self,
     ) -> Arc<SocketConnection<TunnelTcpContract, TunnelTcpSerializer>> {
         self.tunnel_connection.clone()
-    }
-
-    pub async fn send_connection_is_established_to_tunnel(&self, connection_id: u32) {
-        self.tunnel_connection
-            .send(TunnelTcpContract::Connected(connection_id))
-            .await;
     }
 
     pub async fn send_payload_to_tunnel(&self, connection_id: u32, payload: Vec<u8>) {
