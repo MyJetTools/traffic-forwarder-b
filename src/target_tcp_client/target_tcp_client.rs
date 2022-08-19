@@ -20,7 +20,9 @@ impl TargetTcpClient {
         id: u32,
         host_port: String,
     ) -> Result<Arc<Self>, String> {
+        println!("Connecting to {} for target connection {}", host_port, id);
         let connect_result = TcpStream::connect(host_port.as_str()).await;
+        println!("Connected to {} for target connection {}", host_port, id);
 
         match connect_result {
             Ok(tcp_stream) => {
