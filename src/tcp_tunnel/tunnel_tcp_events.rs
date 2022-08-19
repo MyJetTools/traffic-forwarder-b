@@ -25,6 +25,7 @@ impl TunnelTcpEvents {
             }
             TunnelTcpContract::ConnectTo { id, url } => {
                 // A asks to connect to B
+                println!("Reqeust to socket {} make a connection to {}", id, url);
                 establish_connection(self.app.clone(), id, url);
             }
             TunnelTcpContract::Connected(_) => {
